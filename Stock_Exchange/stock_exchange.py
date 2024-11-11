@@ -13,7 +13,7 @@ NEWS_API_URL = 'https://newsapi.org/v2/everything'
 investment_per_stock = 100  # Befektetett összeg részvényenként
 investment_history = {"TSLA": [], "NVDA": []}  # Részvényekhez kapcsolódó befektetési adatok
 total_investment = 0  # Összes befektetett pénz
-cash_on_hand = 0  # Készpénz a további befektetésekhez
+cash_on_hand = 500  # Készpénz a további befektetésekhez (több készpénz a teszteléshez)
 
 # 1. Részvény árfolyamának lekérése a Yahoo Finance API-ból
 def get_stock_data(ticker):
@@ -99,26 +99,7 @@ def make_decision(ticker):
         st.write(f"Semleges döntés: {ticker}, Ára: {current_price}")
         return None  # Ne vegyük meg most
 
-# 5. Részvények eladása, ha a veszteség túl nagy, de hírek figyelembevételével
-def sell_stock_if_needed(ticker, purchase_price):
-    """
-    Eladja a részvényt, ha a veszteség meghaladja a 10%-ot,
-    de nem adja el, ha a hírek arra utalnak, hogy hamarosan növekedhet.
-    """
-    current_price = get_stock_data(ticker)
-    loss_percentage = (current_price - purchase_price) / purchase_price * 100
-    news_titles = get_news(ticker)
-    
-    # Ha a veszteség több mint 10%, és nincsenek pozitív hírek, akkor eladjuk
-    if loss_percentage <= -10 and not any("growth" in title.lower() or "increase" in title.lower() for title in news_titles):
-        st.write(f"Eladás: {ticker}, Vásárlási ár: {purchase_price}, Jelenlegi ár: {current_price}, Veszteség: {loss_percentage:.2f}%")
-        return current_price  # Eladjuk a részvényt, és visszakapjuk a pénzt
-    elif loss_percentage <= -10:
-        st.write(f"Veszteség van: {ticker}, Vásárlási ár: {purchase_price}, Jelenlegi ár: {current_price}, Veszteség: {loss_percentage:.2f}%, de pozitív hír van.")
-        return None  # Ne adjuk el, mert lehet, hogy emelkedni fog
-    return None  # Nincs eladás
-
-# 6. Befektetési logika: most vásárlás, a következő vásárlás a hét első napján
+# 5. Befektetési logika: most vásárlás, a következő vásárlás a hét első napján
 def invest():
     """
     Befektetési döntés alapján elvégzi a vásárlásokat.
@@ -134,13 +115,6 @@ def invest():
         st.write("Ma új vásárlás történik, mivel hétfő van.")
 
         for ticker in ["TSLA", "NVDA"]:
-            # Eladjuk a részvényt, ha túl sokat csökkent az ára
-            for investment in investment_history[ticker]:
-                sell_price = sell_stock_if_needed(ticker, investment['purchase_price'])
-                if sell_price:
-                    cash_on_hand += investment['investment'] * sell_price / investment['purchase_price']
-                    total_investment -= investment['investment']  # Az eladás után csökkentjük a befektetett pénzt
-
             # Döntés a vásárlásról
             decision = make_decision(ticker)
             stock_data = get_stock_data(ticker)
@@ -156,12 +130,13 @@ def invest():
                         'purchase_price': stock_data,
                         'date': time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
                     })
+                    st.write(f"Részvény vásárlás megtörtént: {ticker}, Ár: {stock_data}, Befektetett összeg: {investment_per_stock}")
 
     # Kiírjuk a jelenlegi befektetéseket és azok állapotát
     st.write("\nJelenlegi befektetési adatok:")
     for ticker, investments in investment_history.items():
-        total_investment = sum([i['investment'] for i in investments])
-        st.write(f"{ticker}: {total_investment} USD")
+        total_investment_ticker = sum([i['investment'] for i in investments])
+        st.write(f"{ticker}: {total_investment_ticker} USD")
 
 # Streamlit UI
 st.title("Befektetési alkalmazás")
