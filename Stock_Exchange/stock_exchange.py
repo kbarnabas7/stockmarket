@@ -22,7 +22,7 @@ def get_stock_data(ticker):
     """
     stock = yf.Ticker(ticker)
     data = stock.history(period="1d")
-    return data['Close'].iloc[-1]  # Az utolsó napi záró ár
+    return data['Close'].iloc[-1], data['Open'].iloc[0]  # Záró és nyitó árak
 
 # 2. Gazdasági mutatók lekérése az Alpha Vantage API-ból
 def get_economic_indicators():
@@ -75,7 +75,7 @@ def make_decision(ticker):
     """
     Döntéshozatal a hírek és gazdasági mutatók alapján.
     """
-    stock_data = get_stock_data(ticker)
+    stock_data, open_price = get_stock_data(ticker)
     news_titles = get_news(ticker)
     gdp_growth = get_economic_indicators()
 
@@ -117,7 +117,7 @@ def invest():
         for ticker in ["TSLA", "NVDA"]:
             # Döntés a vásárlásról
             decision = make_decision(ticker)
-            stock_data = get_stock_data(ticker)
+            stock_data, open_price = get_stock_data(ticker)
 
             if decision is not None:
                 if cash_on_hand >= investment_per_stock:
@@ -161,28 +161,28 @@ tsla_price = st.empty()
 nvda_price = st.empty()
 
 # Kezdeti árak tárolása
-previous_tsla_price = get_stock_data("TSLA")
-previous_nvda_price = get_stock_data("NVDA")
+previous_tsla_price = get_stock_data("TSLA")[0]
+previous_nvda_price = get_stock_data("NVDA")[0]
 
 while True:
-    tsla_new_price = get_stock_data("TSLA")
-    nvda_new_price = get_stock_data("NVDA")
+    tsla_new_price, tsla_open_price = get_stock_data("TSLA")
+    nvda_new_price, nvda_open_price = get_stock_data("NVDA")
 
     # Frissítsük az árat, ha változott
     if tsla_new_price != previous_tsla_price:
         tsla_price.markdown(
-            f'TESLA Ár: <span style="color: green; font-weight: bold;">{tsla_new_price}</span>',
+            f'TESLA Ár: <span style="color: green; font-weight: bold;">{tsla_new_price}</span> '
+            f'Változás: {((tsla_new_price - tsla_open_price) / tsla_open_price) * 100:.2f}%',
             unsafe_allow_html=True
         )
         time.sleep(1)  # 1 másodpercig zöld, majd vissza
-        tsla_price.markdown(f'TESLA Ár: {tsla_new_price}', unsafe_allow_html=True)
-        previous_tsla_price = tsla_new_price
+        tsla_price.markdown(f'TESLA Ár: {tsla_new_price} USD')
 
     if nvda_new_price != previous_nvda_price:
         nvda_price.markdown(
-            f'NVIDIA Ár: <span style="color: green; font-weight: bold;">{nvda_new_price}</span>',
+            f'NVDA Ár: <span style="color: green; font-weight: bold;">{nvda_new_price}</span> '
+            f'Változás: {((nvda_new_price - nvda_open_price) / nvda_open_price) * 100:.2f}%',
             unsafe_allow_html=True
         )
-        time.sleep(1)
-        nvda_price.markdown(f'NVIDIA Ár: {nvda_new_price}', unsafe_allow_html=True)
-        previous_nvda_price = nvda_new_price
+        time.sleep(1)  # 1 másodpercig zöld, majd vissza
+        nvda_price.markdown(f'NVDA Ár: {nvda_new_price} USD')
