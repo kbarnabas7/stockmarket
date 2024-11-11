@@ -143,17 +143,8 @@ def countdown_to_next_monday():
     today = datetime.date.today()
     next_monday = today + datetime.timedelta(days=(7 - today.weekday()))  # Következő hétfő
     time_left = next_monday - today  # Idő különbség a következő hétfőig
-    next_monday_time = datetime.datetime.combine(next_monday, datetime.time())  # A következő hétfő pontos ideje
-    time_left_seconds = (next_monday_time - datetime.datetime.now()).total_seconds()  # Másodpercben
 
-    # Nap, óra, perc, másodperc visszaszámláló
-    days = int(time_left_seconds // (24 * 3600))
-    hours = int((time_left_seconds % (24 * 3600)) // 3600)
-    minutes = int((time_left_seconds % 3600) // 60)
-    seconds = int(time_left_seconds % 60)
-
-    # Kiírás
-    st.write(f"A legközelebbi vásárlásig ({next_monday}) {days} nap, {hours} óra, {minutes} perc és {seconds} másodperc van hátra.")
+    st.write(f"A legközelebbi vásárlásig ({next_monday}) {time_left.days} nap van hátra.")
 
 # Streamlit UI
 st.title("Befektetési alkalmazás")
@@ -180,14 +171,18 @@ while True:
     # Frissítsük az árat, ha változott
     if tsla_new_price != previous_tsla_price:
         tsla_price.markdown(
-            f'TESLA Ár: <span style="color: green;">{tsla_new_price}</span>$', unsafe_allow_html=True
+            f'TESLA Ár: <span style="color: green; font-weight: bold;">{tsla_new_price}</span>',
+            unsafe_allow_html=True
         )
+        time.sleep(1)  # 1 másodpercig zöld, majd vissza
+        tsla_price.markdown(f'TESLA Ár: {tsla_new_price}', unsafe_allow_html=True)
         previous_tsla_price = tsla_new_price
 
     if nvda_new_price != previous_nvda_price:
         nvda_price.markdown(
-            f'NVIDIA Ár: <span style="color: green;">{nvda_new_price}</span>$', unsafe_allow_html=True
+            f'NVIDIA Ár: <span style="color: green; font-weight: bold;">{nvda_new_price}</span>',
+            unsafe_allow_html=True
         )
+        time.sleep(1)
+        nvda_price.markdown(f'NVIDIA Ár: {nvda_new_price}', unsafe_allow_html=True)
         previous_nvda_price = nvda_new_price
-
-    time.sleep(60)  # Frissítés minden percben
