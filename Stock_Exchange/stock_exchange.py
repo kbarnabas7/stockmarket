@@ -7,24 +7,20 @@ import streamlit as st
 import requests
 from bs4 import BeautifulSoup
 
-def get_news_from_api(ticker):
-    api_key = 'e81c3cf2fceb4e7390fefff1892da5cf'  # Itt add meg a saját API kulcsodat
-    url = f'https://newsapi.org/v2/everything?q={ticker}&apiKey={api_key}'
-
+# Hírek lekérési funkció
+def get_news(ticker):
     try:
+        url = f"https://finance.yahoo.com/quote/{ticker}?p={ticker}&.tsrc=fin-srch"
         response = requests.get(url)
-        data = response.json()
-
-        if response.status_code != 200 or 'articles' not in data:
-            return ["Nem sikerült lekérni a híreket."]
+        soup = BeautifulSoup(response.text, 'html.parser')
         
-        # Az első 5 hír címének kiírása
-        articles = data['articles'][:5]
-        news_list = [f"{article['title']} - {article['source']['name']}" for article in articles]
+        headlines = soup.find_all('h3', class_='Mb(5px)')
+        news_list = [headline.get_text() for headline in headlines[:5]]  # Az első 5 hír
+        
         return news_list
-
     except Exception as e:
         return [f"Hiba történt a hírek lekérésekor: {e}"]
+
 # A részvényeket tartalmazó JSON fájl betöltése
 with open('Stock_Exchange/company_tickers.json') as f:
     company_data = json.load(f)
@@ -49,7 +45,7 @@ results_df = pd.DataFrame(columns=["Részvény", "Ticker", "Jelenlegi ár (USD)"
                                    "Változás (%)"])
 
 for i, (key, value) in enumerate(company_data.items()):
-    if i >= 2000:
+    if i >= 20:
         break
     
     ticker = value['ticker']
@@ -98,12 +94,7 @@ if not results_df.empty:
              f"(Jelenlegi ár: {max_change_row['Jelenlegi ár (USD)']:.2f} USD, "
              f"Előrejelzett ár: {max_change_row['Előrejelzett ár (USD)']:.2f} USD)")
 
-# Legnagyobb változás magyarázata
-# Legnagyobb változás magyarázata
-st.subheader("Legnagyobb változás magyarázata:")
-news = get_news_from_api(max_change_row['Ticker'])
-if news:
+    st.subheader("Legnagyobb változás magyarázata:")
+    news = get_news(max_change_row['Ticker'])
     for item in news:
         st.write(f"- {item}")
-else:
-    st.write("Nem érhető el releváns információ a változás okairól.")
