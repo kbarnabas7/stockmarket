@@ -3,14 +3,17 @@ import json
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import MinMaxScaler
-import time
+import streamlit as st
 
 # A részvényeket tartalmazó JSON fájl betöltése
 with open('Stock_Exchange/company_tickers.json') as f:
     company_data = json.load(f)
 
-# Adatok előkészítése és egyszerű modell használata mozgóátlaggal vagy lineáris regresszióval
+# Streamlit címek
+st.title("Befektetési alkalmazás")
+st.subheader("Elemzett részvények adatai")
+
+# Adatok előkészítése és egyszerű modell használata
 def prepare_data(data, window_size=30):
     X, y = [], []
     for i in range(len(data) - window_size):
@@ -27,18 +30,18 @@ results_df = pd.DataFrame(columns=["Részvény", "Ticker", "Jelenlegi ár (USD)"
                                    "Változás (%)"])
 
 for i, (key, value) in enumerate(company_data.items()):
-    if i >= 20:
-        break  # Csak az első 20 részvényt vizsgáljuk
+    if i >= 20:  # Csak az első 20 részvényt vizsgáljuk
+        break
     
     ticker = value['ticker']
     
     try:
         # Részvény adatok lekérése a Yahoo Finance API-val
         stock = yf.Ticker(ticker)
-        data = stock.history(period="1y")  # Egy évnyi adat
+        data = stock.history(period="1y")
 
         if data.empty:
-            print(f"Nincs elérhető adat a(z) {ticker} részvényhez.")
+            st.warning(f"Nincs elérhető adat a(z) {ticker} részvényhez.")
             continue
         
         close_prices = data['Close'].values
@@ -72,7 +75,7 @@ for i, (key, value) in enumerate(company_data.items()):
         results_df = pd.concat([results_df, pd.DataFrame([new_row])], ignore_index=True)
     
     except Exception as e:
-        print(f"Hiba a(z) {ticker} részvénynél: {e}")
+        st.error(f"Hiba a(z) {ticker} részvénynél: {e}")
 
-# Eredmények kiírása
-print(results_df)
+# Eredmények megjelenítése Streamlitben
+st.dataframe(results_df)
