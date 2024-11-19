@@ -24,13 +24,16 @@ def prepare_data(data, window_size=30):
 def build_model():
     return LinearRegression()
 
+# Hely fenntartása a dinamikus táblázathoz
+results_placeholder = st.empty()
+
 # Eredmények tárolása egy DataFrame-ben
 results_df = pd.DataFrame(columns=["Részvény", "Ticker", "Jelenlegi ár (USD)", 
                                    "Előrejelzett ár (USD)", "Ajánlás", 
                                    "Változás (%)"])
 
 for i, (key, value) in enumerate(company_data.items()):
-    if i >= 2000:  # Csak az első 20 részvényt vizsgáljuk
+    if i >= 20:  # Csak az első 20 részvényt vizsgáljuk
         break
     
     ticker = value['ticker']
@@ -73,9 +76,9 @@ for i, (key, value) in enumerate(company_data.items()):
             "Változás (%)": percent_change
         }
         results_df = pd.concat([results_df, pd.DataFrame([new_row])], ignore_index=True)
+        
+        # Táblázat frissítése
+        results_placeholder.dataframe(results_df)
     
     except Exception as e:
         st.error(f"Hiba a(z) {ticker} részvénynél: {e}")
-
-# Eredmények megjelenítése Streamlitben
-st.dataframe(results_df)
