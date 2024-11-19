@@ -49,7 +49,7 @@ results_df = pd.DataFrame(columns=["Részvény", "Ticker", "Jelenlegi ár (USD)"
                                    "Változás (%)"])
 
 for i, (key, value) in enumerate(company_data.items()):
-    if i >= 20:
+    if i >= 2000:
         break
     
     ticker = value['ticker']
