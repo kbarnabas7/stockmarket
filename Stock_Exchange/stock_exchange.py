@@ -57,7 +57,7 @@ for i, (key, value) in enumerate(company_data.items()):
     
     try:
         stock = yf.Ticker(ticker)
-        data = stock.history(period="4y")
+        data = stock.history(period="2y")
         if data.empty:
             continue  # Ha nincs adat, egyszerűen ugrunk a következő részvényre
         
