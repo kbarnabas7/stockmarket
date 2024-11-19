@@ -16,7 +16,7 @@ def get_news_from_api(ticker):
         data = response.json()
 
         if response.status_code != 200 or 'articles' not in data:
-            return []  # Ha nincs hír, üres listát adunk vissza
+            return ["Nem sikerült lekérni a híreket."]
         
         # Az első 5 hír címének kiírása
         articles = data['articles'][:5]
@@ -25,7 +25,6 @@ def get_news_from_api(ticker):
 
     except Exception as e:
         return [f"Hiba történt a hírek lekérésekor: {e}"]
-
 # A részvényeket tartalmazó JSON fájl betöltése
 with open('Stock_Exchange/company_tickers.json') as f:
     company_data = json.load(f)
@@ -57,9 +56,10 @@ for i, (key, value) in enumerate(company_data.items()):
     
     try:
         stock = yf.Ticker(ticker)
-        data = stock.history(period="2y")
+        data = stock.history(period="1y")
         if data.empty:
-            continue  # Ha nincs adat, egyszerűen ugrunk a következő részvényre
+            st.warning(f"Nincs elérhető adat a(z) {ticker} részvényhez.")
+            continue
         
         close_prices = data['Close'].values
         current_price = close_prices[-1]
@@ -99,10 +99,11 @@ if not results_df.empty:
              f"Előrejelzett ár: {max_change_row['Előrejelzett ár (USD)']:.2f} USD)")
 
 # Legnagyobb változás magyarázata
+# Legnagyobb változás magyarázata
 st.subheader("Legnagyobb változás magyarázata:")
 news = get_news_from_api(max_change_row['Ticker'])
-if news:  # Csak akkor írunk ki híreket, ha van elérhető információ
+if news:
     for item in news:
         st.write(f"- {item}")
 else:
-    st.write("Nincs elérhető információ a változás okairól.")
+    st.write("Nem érhető el releváns információ a változás okairól.")
