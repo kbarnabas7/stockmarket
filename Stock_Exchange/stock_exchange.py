@@ -94,11 +94,6 @@ for i, (key, value) in enumerate(company_data.items()):
             "Ticker": ticker,
             "Jelenlegi ár (USD)": current_price,
             "Előrejelzett ár (USD)": predicted_price,
-            "P/E arány": pe_ratio,
-            "Dividend Yield": dividend_yield,
-            "Volatilitás": volatility,
-            "Befektetett összeg (USD)": investment_amount,
-            "Részvény mennyiség": shares_to_buy,
             "Várható hozam (%)": expected_return,
             "Árváltozás (USD)": predicted_price - current_price
         }
