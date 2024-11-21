@@ -42,7 +42,7 @@ best_choice = None
 best_investment_score = -float('inf')  # Kezdő érték, hogy találjunk jobb választást
 
 for i, (key, value) in enumerate(company_data.items()):
-    if i >= 20:  # Csak az első 20 részvényt vizsgáljuk
+    if i >= 2000:  # Csak az első 20 részvényt vizsgáljuk
         break
     
     ticker = value['ticker']
