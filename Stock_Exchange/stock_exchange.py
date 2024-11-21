@@ -29,10 +29,8 @@ results_placeholder = st.empty()
 
 # Eredmények tárolása egy DataFrame-ben
 results_df = pd.DataFrame(columns=["Részvény", "Ticker", "Jelenlegi ár (USD)", 
-                                   "Előrejelzett ár (USD)", "P/E arány", 
-                                   "Dividend Yield", "Volatilitás", 
-                                   "Befektetett összeg (USD)", "Részvény mennyiség", 
-                                   "Várható hozam (%)", "Árváltozás (USD)"])
+                                   "Előrejelzett ár (USD)", "Várható hozam (%)", 
+                                   "Árváltozás (USD)"])
 
 # Meghatározott befektetési összeg
 investment_amount = 500  # Az automatikusan felhasznált befektetési összeg
@@ -68,13 +66,6 @@ for i, (key, value) in enumerate(company_data.items()):
         # Jövőbeli ár előrejelzése
         predicted_price = model.predict([close_prices[-window_size:]])[0]
 
-        # P/E arány és dividend yield lekérése
-        pe_ratio = stock.info.get('trailingPE', 0)  # P/E arány
-        dividend_yield = stock.info.get('dividendYield', 0)  # Osztalék hozam
-
-        # A részvény volatilitásának kiszámítása (standard deviation)
-        volatility = np.std(close_prices)
-
         # Százalékos változás kiszámítása
         daily_start_price = stock.history(period="1d")['Open'].iloc[0]
         percent_change = ((current_price - daily_start_price) / daily_start_price) * 100
@@ -85,8 +76,8 @@ for i, (key, value) in enumerate(company_data.items()):
         # Várható hozam kiszámítása (százalékos változás az előrejelzett ár alapján)
         expected_return = ((predicted_price - current_price) / current_price) * 100
 
-        # Befektetési döntési pontozás: figyelembe veszi a P/E arányt, dividend yield-et, volatilitást és várható hozamot
-        investment_score = expected_return * 0.5 + dividend_yield * 0.3 - volatility * 0.2
+        # Befektetési döntési pontozás: figyelembe veszi a várható hozamot
+        investment_score = expected_return * 0.5
 
         # Új sor hozzáadása az eredményekhez
         new_row = {
@@ -97,7 +88,10 @@ for i, (key, value) in enumerate(company_data.items()):
             "Várható hozam (%)": expected_return,
             "Árváltozás (USD)": predicted_price - current_price
         }
+
+        # Frissítés a táblázatban minden egyes ticker után
         results_df = pd.concat([results_df, pd.DataFrame([new_row])], ignore_index=True)
+        results_placeholder.dataframe(results_df)
 
         # Legjobb választás meghatározása a befektetési pontozás alapján
         if investment_score > best_investment_score:
@@ -107,9 +101,6 @@ for i, (key, value) in enumerate(company_data.items()):
     except Exception as e:
         st.error(f"Hiba a(z) {ticker} részvénynél: {e}")
 
-# Táblázat frissítése
-results_placeholder.dataframe(results_df)
-
 # A legjobb választás megjelenítése
 if best_choice:
     st.subheader("Legjobb hosszú távú befektetési lehetőség:")
@@ -117,12 +108,7 @@ if best_choice:
     st.write(f"Ticker: **{best_choice['Ticker']}**")
     st.write(f"Jelenlegi ár: **{best_choice['Jelenlegi ár (USD)']:.2f} USD**")
     st.write(f"Előrejelzett ár: **{best_choice['Előrejelzett ár (USD)']:.2f} USD**")
-    st.write(f"P/E arány: **{best_choice['P/E arány']}**")
-    st.write(f"Dividend Yield: **{best_choice['Dividend Yield']}**")
-    st.write(f"Volatilitás: **{best_choice['Volatilitás']:.2f}**")
     st.write(f"Várható hozam: **{best_choice['Várható hozam (%)']:.2f}%**")
     st.write(f"Árváltozás (USD): **{best_choice['Árváltozás (USD)']:.2f} USD**")
-    st.write(f"Befektetett összeg: **{best_choice['Befektetett összeg (USD)']} USD**")
-    st.write(f"Részvény mennyiség: **{best_choice['Részvény mennyiség']:.2f} db**")
 else:
     st.write("Nincs elérhető részvény, amely megfelel a hosszú távú befektetési feltételeknek.")
