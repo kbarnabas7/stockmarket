@@ -5,12 +5,12 @@ import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import MinMaxScaler
 import streamlit as st
-from newsapi import NewsApiClient
+import requests
 import datetime
 from textblob import TextBlob
-import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense
+
+# Az OpenWeather API kulcsod
+API_KEY = 'b745fba7d1cfa8fc0108250874e03811'
 
 # A részvényeket tartalmazó JSON fájl betöltése
 with open('Stock_Exchange/company_tickers.json') as f:
@@ -31,18 +31,31 @@ def prepare_data(data, window_size=30):
 def build_model():
     return LinearRegression()
 
-# News API kliens beállítása
-newsapi = NewsApiClient(api_key='e81c3cf2fceb4e7390fefff1892da5cf')
-
-def get_news(ticker):
-    # Lekérjük a részvényekhez kapcsolódó híreket
+# OpenWeather API hírek lekéréséhez
+def get_weather_news(ticker):
+    # Lekérjük a részvényekhez kapcsolódó híreket az OpenWeather API-tól
     today = datetime.datetime.today().strftime('%Y-%m-%d')
-    news = newsapi.get_everything(q=ticker,
-                                  from_param=today,
-                                  to=today,
-                                  language='en',
-                                  sort_by='relevancy')
-    return news['articles']
+    url = f'http://api.openweathermap.org/data/2.5/weather?q={ticker}&appid={API_KEY}'
+    
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # Ha hiba van, kivételt dob
+        
+        data = response.json()
+        
+        if response.status_code == 200:
+            # Itt a hír szövegét az API válasza alapján formázzuk
+            city = data.get('name', 'Ismeretlen város')
+            weather = data['weather'][0]['description']
+            
+            # Hírek hozzáadása
+            news = f"Város: {city}\nIdőjárás: {weather}\n"
+            return news
+        else:
+            return "Hiba történt a hír lekérése közben!"
+    
+    except requests.exceptions.RequestException as e:
+        return f"Hiba történt a kérés során: {e}"
 
 def sentiment_analysis(news_titles):
     sentiment_score = 0
@@ -50,14 +63,6 @@ def sentiment_analysis(news_titles):
         analysis = TextBlob(title)
         sentiment_score += analysis.sentiment.polarity
     return sentiment_score
-
-def build_lstm_model():
-    model = Sequential()
-    model.add(LSTM(50, return_sequences=True, input_shape=(30, 1)))
-    model.add(LSTM(50, return_sequences=False))
-    model.add(Dense(1))
-    model.compile(optimizer='adam', loss='mean_squared_error')
-    return model
 
 # Hely fenntartása a dinamikus táblázathoz
 results_placeholder = st.empty()
@@ -77,7 +82,7 @@ best_choice = None
 best_investment_score = -float('inf')  # Kezdő érték, hogy találjunk jobb választást
 
 for i, (key, value) in enumerate(company_data.items()):
-    if i >= 2000:  # Csak az első 20 részvényt vizsgáljuk
+    if i >= 20:  # Csak az első 20 részvényt vizsgáljuk
         break
     
     ticker = value['ticker']
@@ -124,10 +129,8 @@ for i, (key, value) in enumerate(company_data.items()):
         investment_score = expected_return * 0.5 + dividend_yield * 0.3 - volatility * 0.2
 
         # Lekérjük a híreket a részvényhez
-        news = get_news(ticker)
-        news_titles = [article['title'] for article in news]
-        sentiment_score = sentiment_analysis(news_titles)
-
+        news = get_weather_news(ticker)
+        
         # Új sor hozzáadása az eredményekhez
         new_row = {
             "Részvény": value['title'],
@@ -141,8 +144,7 @@ for i, (key, value) in enumerate(company_data.items()):
             "Részvény mennyiség": shares_to_buy,
             "Várható hozam (%)": expected_return,
             "Árváltozás (USD)": predicted_price - current_price,
-            "Hírek": "\n".join(news_titles),
-            "Szentiment": sentiment_score
+            "Hírek": news
         }
         results_df = pd.concat([results_df, pd.DataFrame([new_row])], ignore_index=True)
 
@@ -168,5 +170,3 @@ if best_choice:
     st.write(f"Dividend Yield: **{best_choice['Dividend Yield']*100:.2f}%**")
     st.write(f"Várható hozam: **{best_choice['Várható hozam (%)']:.2f}%**")
     st.write(f"Árváltozás: **{best_choice['Árváltozás (USD)']:.2f} USD**")
-    st.write(f"Szentiment Score: **{best_choice['Szentiment']:.2f}**")
-
