@@ -9,7 +9,7 @@ import logging
 
 # Naplózási rendszer beállítása
 logging.basicConfig(
-    filename="stock_app.log",
+    filename="Stock_Exchange/stock_app.log",
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
