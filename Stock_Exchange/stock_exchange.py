@@ -4,16 +4,43 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 import streamlit as st
+import os
+import logging
 
-# A részvényeket tartalmazó JSON fájl betöltése
-with open('Stock_Exchange/company_tickers.json') as f:
-    company_data = json.load(f)
+# Naplózási rendszer beállítása
+logging.basicConfig(
+    filename="stock_app.log",
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
+# JSON fájl validálása
+json_file_path = 'Stock_Exchange/company_tickers.json'
+if not os.path.exists(json_file_path):
+    st.error("A company_tickers.json fájl nem található!")
+    logging.error("A company_tickers.json fájl nem található!")
+    st.stop()
+
+# Részvényeket tartalmazó JSON fájl betöltése
+with open(json_file_path) as f:
+    try:
+        company_data = json.load(f)
+    except json.JSONDecodeError as e:
+        st.error("Hiba a JSON fájl beolvasása során!")
+        logging.error(f"Hiba a JSON fájl beolvasása során: {e}")
+        st.stop()
 
 # Streamlit címek
 st.title("Befektetési alkalmazás")
 st.subheader("Elemzett részvények adatai")
 
-# Adatok előkészítése és egyszerű modell használata
+# Befektetési összeg beállítása
+investment_amount = st.number_input(
+    "Adja meg a befektetési összeget (USD):",
+    min_value=100.0, value=500.0, step=50.0
+)
+
+# Adatok előkészítése
 def prepare_data(data, window_size=30):
     X, y = [], []
     for i in range(len(data) - window_size):
@@ -21,94 +48,101 @@ def prepare_data(data, window_size=30):
         y.append(data[i + window_size])
     return np.array(X), np.array(y)
 
+# Lineáris regressziós modell létrehozása
 def build_model():
     return LinearRegression()
 
-# Hely fenntartása a dinamikus táblázathoz
+# Hely fenntartása a táblázathoz és grafikonhoz
 results_placeholder = st.empty()
+chart_placeholder = st.empty()
 
-# Eredmények tárolása egy DataFrame-ben
-results_df = pd.DataFrame(columns=["Részvény", "Ticker", "Jelenlegi ár (USD)", 
-                                   "Előrejelzett ár (USD)", "Várható hozam (%)", 
-                                   "Árváltozás (USD)"])
+# Eredmények tárolása
+results_df = pd.DataFrame(columns=["Részvény", "Ticker", "Jelenlegi ár (USD)",
+                                   "Előrejelzett ár (USD)", "P/E arány",
+                                   "Dividend Yield", "Volatilitás",
+                                   "Befektetett összeg (USD)", "Részvény mennyiség",
+                                   "Várható hozam (%)", "Árváltozás (USD)"])
 
-# Meghatározott befektetési összeg
-investment_amount = 500  # Az automatikusan felhasznált befektetési összeg
-
-# Lista a legjobb választás kiválasztásához
 best_choice = None
-best_investment_score = -float('inf')  # Kezdő érték, hogy találjunk jobb választást
+best_investment_score = -float('inf')  # Legjobb befektetési pontszám
 
 for i, (key, value) in enumerate(company_data.items()):
-    if i >= 2000:  # Csak az első 20 részvényt vizsgáljuk
+    if i >= 20:  # Csak az első 20 részvényt vizsgáljuk
         break
-    
+
     ticker = value['ticker']
-    
     try:
-        # Részvény adatok lekérése a Yahoo Finance API-val
+        # Részvény adatok lekérése
         stock = yf.Ticker(ticker)
         data = stock.history(period="1y")
 
         if data.empty:
             st.warning(f"Nincs elérhető adat a(z) {ticker} részvényhez.")
+            logging.warning(f"Nincs adat a(z) {ticker} részvényhez.")
             continue
-        
+
         close_prices = data['Close'].values
         current_price = close_prices[-1]
 
-        # Adatok előkészítése és modell betanítása
+        # Modell betanítása
         window_size = 30
         X, y = prepare_data(close_prices, window_size)
         model = build_model()
         model.fit(X, y)
-
-        # Jövőbeli ár előrejelzése
         predicted_price = model.predict([close_prices[-window_size:]])[0]
 
-        # Százalékos változás kiszámítása
+        # Kiegészítő adatok
+        pe_ratio = stock.info.get('trailingPE', 0)  # P/E arány
+        dividend_yield = stock.info.get('dividendYield', 0)  # Osztalék hozam
+        volatility = np.std(close_prices)  # Volatilitás
+
+        # Százalékos változás
         daily_start_price = stock.history(period="1d")['Open'].iloc[0]
         percent_change = ((current_price - daily_start_price) / daily_start_price) * 100
 
-        # Az automatikus befektetés kiszámítása
+        # Részvények számának kiszámítása
         shares_to_buy = investment_amount / current_price
 
-        # Várható hozam kiszámítása (százalékos változás az előrejelzett ár alapján)
+        # Várható hozam
         expected_return = ((predicted_price - current_price) / current_price) * 100
 
-        # Befektetési döntési pontozás: figyelembe veszi a várható hozamot
-        investment_score = expected_return * 0.5
+        # Befektetési pontszám
+        investment_score = expected_return * 0.5 + dividend_yield * 0.3 - volatility * 0.2
 
-        # Új sor hozzáadása az eredményekhez
+        # Új eredmény hozzáadása
         new_row = {
             "Részvény": value['title'],
             "Ticker": ticker,
             "Jelenlegi ár (USD)": current_price,
             "Előrejelzett ár (USD)": predicted_price,
+            "P/E arány": pe_ratio,
+            "Dividend Yield": dividend_yield,
+            "Volatilitás": volatility,
+            "Befektetett összeg (USD)": investment_amount,
+            "Részvény mennyiség": shares_to_buy,
             "Várható hozam (%)": expected_return,
             "Árváltozás (USD)": predicted_price - current_price
         }
-
-        # Frissítés a táblázatban minden egyes ticker után
         results_df = pd.concat([results_df, pd.DataFrame([new_row])], ignore_index=True)
-        results_placeholder.dataframe(results_df)
 
-        # Legjobb választás meghatározása a befektetési pontozás alapján
+        # Legjobb választás
         if investment_score > best_investment_score:
             best_investment_score = investment_score
             best_choice = new_row
-    
+
     except Exception as e:
         st.error(f"Hiba a(z) {ticker} részvénynél: {e}")
+        logging.error(f"Hiba a(z) {ticker} részvénynél: {e}")
 
-# A legjobb választás megjelenítése
+# Táblázat és grafikon frissítése
+results_placeholder.dataframe(results_df)
+if not results_df.empty:
+    chart_placeholder.line_chart(results_df[["Jelenlegi ár (USD)", "Előrejelzett ár (USD)"]])
+
+# Legjobb választás megjelenítése
 if best_choice:
-    st.subheader("Legjobb hosszú távú befektetési lehetőség:")
-    st.write(f"Részvény: **{best_choice['Részvény']}**")
-    st.write(f"Ticker: **{best_choice['Ticker']}**")
-    st.write(f"Jelenlegi ár: **{best_choice['Jelenlegi ár (USD)']:.2f} USD**")
-    st.write(f"Előrejelzett ár: **{best_choice['Előrejelzett ár (USD)']:.2f} USD**")
-    st.write(f"Várható hozam: **{best_choice['Várható hozam (%)']:.2f}%**")
-    st.write(f"Árváltozás (USD): **{best_choice['Árváltozás (USD)']:.2f} USD**")
+    st.subheader("Legjobb befektetési lehetőség:")
+    for key, value in best_choice.items():
+        st.write(f"**{key}**: {value:.2f}" if isinstance(value, (float, int)) else f"**{key}**: {value}")
 else:
-    st.write("Nincs elérhető részvény, amely megfelel a hosszú távú befektetési feltételeknek.")
+    st.write("Nincs megfelelő részvény.")
